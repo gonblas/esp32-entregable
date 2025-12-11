@@ -1,10 +1,10 @@
 /*----------------------------------------------------------------------------------------------------------------------------------------------*/
 // Definiciones para habilitar/deshabilitar distintas porciones de codigo --> 0L desactivo, 1L activa                                         // |
 #define SENSORES_ENABLE 1L // |
-#define MQTT_ENABLE 0L
-#define WIFI_ENABLE 0L   // |
+#define MQTT_ENABLE 1L
+#define WIFI_ENABLE 1L   // |
 #define LORA_ENABLE 1L   // |                                                                                                         // |
-#define PRUEBA_ENABLE 0L // simulacion de sensores mediante generacion de numeros aleatorio en el rango adecuado usando funcion "random"   |
+#define PRUEBA_ENABLE 1L // simulacion de sensores mediante generacion de numeros aleatorio en el rango adecuado usando funcion "random"   |
 #define RELE_ENABLE 0L   //
 #define PID_CONTROLER 1L // HABILITA CONTROLADOR PID
 /*----------------------------------------------------------------------------------------------------------------------------------------------*/
@@ -65,7 +65,6 @@ float readLDR2()
   mean /= 100;
   return mean;
 }
-#endif
 
 #if PID_CONTROLER
 
@@ -76,16 +75,55 @@ PID::PIDParameters<double> parameters(0.4, 6.0, 0.0001); // parámetros del cont
 PID::PIDController<double> pidController(parameters);
 #endif
 
-#if WIFI_ENABLE
-// Reemplazar con las credenciales de la red a usar
-const char *ssid = "Wokwi-GUEST";
-const char *password = "";
+void ControlPIDTask(void *pvParameters)
+{
+  (void)pvParameters;
 
+  pinMode(PIN_LDR, INPUT);
+  pinMode(PIN_LDR2, INPUT);
+
+#if PID_CONTROLER
+  pinMode(PIN_LED, OUTPUT);
+  pinMode(PIN_LED2, OUTPUT);
+
+  pidController.Input = analogRead(PIN_LDR);
+  pidController.Setpoint = 340;
+  pidController.TurnOn();
 #endif
 
-// Funcion que va a ejecutarse cuando se active la interrupcion externa al pulsar el boton
+  for (;;)
+  {
+    float ilum2 = readLDR2();
+    ; // sensor de luz exterior control on-off
+    iluminacion2 = String(ilum2);
+    Serial.println("Iluminacion exterior: ");
+    Serial.println(ilum2);
+    if (ilum2 < 200)
+      digitalWrite(PIN_LED2, HIGH);
+    else
+      digitalWrite(PIN_LED2, LOW);
+
+    auto ilum = readLDR(); // sensor de luz intrerior control PID
+    Serial.println("Iluminacion interior: ");
+    Serial.println(ilum);
+    iluminacion = String(ilum);
+    Serial.println(ilum);
+
+#if PID_CONTROLER
+    pidController.Input = ilum;
+    pidController.Update();
+    analogWrite(PIN_LED, (int)pidController.Output);
+#endif
+    vTaskDelay(pdMS_TO_TICKS(1000));
+  }
+}
+#endif
 
 #if WIFI_ENABLE
+// Reemplazar con las credenciales de la red a usar
+const char *ssid = "g-wifi";
+const char *password = "lionelmessi10";
+
 void connectWiFi()
 {
   // Connect to Wi-Fi network with SSID and password
@@ -134,44 +172,14 @@ void connectMQTT()
                  { Serial.println("mqtt received: " + topic + " - " + payload); });
 
   // subscribe topic and callback which is called when /hello has come
+  vTaskDelay(pdMS_TO_TICKS(1000));
 }
 
-#endif
-
-#if SENSORES_ENABLE
-void SensorTask(void *pvParameters)
-{
-  (void)pvParameters;
-
-  for (;;)
-  {
-    float ilum2 = readLDR2();
-    ; // sensor de luz exterior control on-off
-    iluminacion2 = String(ilum2);
-    Serial.println("Iluminacion exterior: ");
-    Serial.println(ilum2);
-    if (ilum2 < 200)
-      digitalWrite(PIN_LED2, HIGH);
-    else
-      digitalWrite(PIN_LED2, LOW);
-
-    auto ilum = readLDR(); // sensor de luz intrerior control PID
-    Serial.println("Iluminacion interior: ");
-    Serial.println(ilum);
-    iluminacion = String(ilum);
-    Serial.println(ilum);
-    pidController.Input = ilum;
-    pidController.Update();
-    analogWrite(PIN_LED, (int)pidController.Output);
-  }
-}
-#endif
-
-#if MQTT_ENABLE
 void MQTTTask(void *pvParameters)
 {
   (void)pvParameters;
-
+  connectMQTT();
+  delay(2000);
   for (;;)
   {
     mqtt.update(); // should be called
@@ -182,9 +190,9 @@ void MQTTTask(void *pvParameters)
       prev_ms = millis();
 
       mqtt.publish("/grupo1/iluminacion", iluminacion);
-      delay(500);
+      vTaskDelay(pdMS_TO_TICKS(500));
       mqtt.publish("/grupo1/iluminacion2", iluminacion2);
-      delay(500);
+      vTaskDelay(pdMS_TO_TICKS(500));
     }
   }
 }
@@ -193,42 +201,30 @@ void MQTTTask(void *pvParameters)
 void setup()
 {
   Serial.begin(115200);
-  delay(1000); // Esperar a que el puerto serial se inicialice
   Serial.println("Inicializando");
+  
+#if WIFI_ENABLE
+  connectWiFi();
+  delay(2000);
+#endif
 
-  pinMode(PIN_LDR, INPUT);
-  pinMode(PIN_LDR2, INPUT);
+  xTaskCreatePinnedToCore(
+      MQTTTask,
+      "MQTTTask",
+      10000,
+      NULL,
+      1,
+      NULL,
+      0);
 
-  pinMode(PIN_LED, OUTPUT);
-  pinMode(PIN_LED2, OUTPUT);
-
-  pidController.Input = analogRead(PIN_LDR);
-  pidController.Setpoint = 340;
-  pidController.TurnOn();
+  xTaskCreatePinnedToCore(
+      ControlPIDTask,
+      "ControlPIDTask",
+      10000,
+      NULL,
+      1,
+      NULL,
+      1);
 }
 
-void loop()
-{
-  delay(1000); // Delay para evitar saturar el puerto serial
-  float ilum = readLDR();
-  float ilum2 = readLDR2();
-
-  Serial.print("Luz interior: ");
-  Serial.println(ilum);
-
-  Serial.print("Luz exterior: ");
-  Serial.println(ilum2);
-
-  // LED exterior ON/OFF
-  if (ilum2 < 200)
-    digitalWrite(PIN_LED2, HIGH);
-  else
-    digitalWrite(PIN_LED2, LOW);
-
-  // PID interior
-  pidController.Input = ilum;
-  pidController.Update();
-  analogWrite(PIN_LED, (int)pidController.Output);
-
-  delay(300);
-}
+void loop() { }
