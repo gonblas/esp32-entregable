@@ -11,6 +11,9 @@
 
 #include <Arduino.h>
 
+#define STACK_SIZE 10000
+#define PRIORITY 1
+
 #if PID_CONTROLER
 #include <PIDController.hpp>
 #endif
@@ -26,6 +29,7 @@
 #define AIO_SERVERPORT 1883 // use 8883 for SSL
 #define AIO_USERNAME "embebidos"
 #define AIO_KEY "Digitales1"
+#define WIFI_CORE 0 // Núcleo del ESP32 para la conexión WiFi y MQTT
 // DEFINE EL CLIENTE MQTT
 WiFiClient client;
 MQTTPubSubClient mqtt;
@@ -67,6 +71,8 @@ float readLDR2()
 }
 
 #if PID_CONTROLER
+
+#define SENSOR_CORE 1 // Núcleo del ESP32 para la lectura del sensor y control PID
 
 const int PIN_LED = 12;
 const int PIN_LED2 = 14;
@@ -149,7 +155,7 @@ void connectWiFi()
 void connectMQTT()
 {
   Serial.print("connecting to host...");
-  while (!client.connect("163.10.3.73", 1883))
+  while (!client.connect(AIO_SERVER, AIO_SERVERPORT))
   {
     Serial.print(".");
     delay(1000);
@@ -175,7 +181,7 @@ void connectMQTT()
   vTaskDelay(pdMS_TO_TICKS(1000));
 }
 
-void MQTTTask(void *pvParameters)
+void WiFiCommunicationTask(void *pvParameters)
 {
   (void)pvParameters;
   connectMQTT();
@@ -201,30 +207,33 @@ void MQTTTask(void *pvParameters)
 void setup()
 {
   Serial.begin(115200);
-  Serial.println("Inicializando");
-  
+  Serial.println("Initializing...");
+
 #if WIFI_ENABLE
   connectWiFi();
-  delay(2000);
 #endif
 
+#if WIFI_ENABLE && MQTT_ENABLE
   xTaskCreatePinnedToCore(
-      MQTTTask,
-      "MQTTTask",
-      10000,
+      WiFiCommunicationTask,
+      "WiFiCommunicationTask",
+      STACK_SIZE,
       NULL,
-      1,
+      PRIORITY,
       NULL,
-      0);
+      WIFI_CORE);
+#endif
 
+#if SENSORES_ENABLE && PID_CONTROLER
   xTaskCreatePinnedToCore(
       ControlPIDTask,
       "ControlPIDTask",
-      10000,
+      STACK_SIZE,
       NULL,
-      1,
+      PRIORITY,
       NULL,
-      1);
+      SENSOR_CORE);
+#endif
 }
 
 void loop() { }

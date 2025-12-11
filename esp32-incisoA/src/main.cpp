@@ -1,6 +1,8 @@
 #include <Arduino.h>
 
 #define N 10000
+#define STACK_SIZE 10000
+#define PRIORITY 20
 // ---------------------------------------------------------
 // VARIABLES GLOBALES
 // ---------------------------------------------------------
@@ -82,8 +84,8 @@ void setup() {
 
     startTime = micros();
     xTaskCreatePinnedToCore(
-      powerTask, "T1", 10000,
-      (void*)&oneTask, 20,
+      powerTask, "oneTask", STACK_SIZE,
+      (void*)&oneTask, PRIORITY,
       NULL, 0
     );
     xSemaphoreTake(doneSem, portMAX_DELAY);
@@ -100,14 +102,14 @@ void setup() {
     startTime = micros();
 
     xTaskCreatePinnedToCore(
-      powerTask, "T1", 10000,
-      (void*)&twoTasks1, 20,
+      powerTask, "twoTasks1", STACK_SIZE,
+      (void*)&twoTasks1, PRIORITY,
       NULL, 0
     );
 
     xTaskCreatePinnedToCore(
-      powerTask, "T2", 10000,
-      (void*)&twoTasks2, 20,
+      powerTask, "twoTasks2", STACK_SIZE,
+      (void*)&twoTasks2, PRIORITY,
       NULL, 1
     );
 
@@ -130,6 +132,4 @@ void setup() {
   Serial.println("\n----- PROGRAMA TERMINADO -----");
 }
 
-void loop() {
-  // no se usa
-}
+void loop() { }
