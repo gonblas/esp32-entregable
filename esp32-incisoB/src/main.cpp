@@ -4,7 +4,7 @@
 #define MQTT_ENABLE 1L
 #define WIFI_ENABLE 1L   // |
 #define LORA_ENABLE 1L   // |                                                                                                         // |
-#define PRUEBA_ENABLE 1L // simulacion de sensores mediante generacion de numeros aleatorio en el rango adecuado usando funcion "random"   |
+#define PRUEBA_ENABLE 0L // simulacion de sensores mediante generacion de numeros aleatorio en el rango adecuado usando funcion "random"   |
 #define RELE_ENABLE 0L   //
 #define PID_CONTROLER 1L // HABILITA CONTROLADOR PID
 /*----------------------------------------------------------------------------------------------------------------------------------------------*/
@@ -52,7 +52,7 @@ float readLDR()
   for (auto i = 0; i < 100; i++)
   {
     auto V = (float)analogRead(PIN_LDR);
-    mean += (V * A * 10) / (B * Rc * (1024 - V));
+    mean += (V * A * 10) / (B * Rc * (4096 - V)); // fórmula para calcular lux (4095 para ADC de 12 bits)
   }
   mean /= 100;
   return mean;
@@ -64,7 +64,7 @@ float readLDR2()
   for (auto i = 0; i < 100; i++)
   {
     auto V = (float)analogRead(PIN_LDR2);
-    mean += (V * A * 10) / (B * Rc * (1024 - V));
+    mean += (V * A * 10) / (B * Rc * (4096 - V)); // fórmula para calcular lux (4095 para ADC de 12 bits)
   }
   mean /= 100;
   return mean;
@@ -75,7 +75,7 @@ float readLDR2()
 #define SENSOR_CORE 1 // Núcleo del ESP32 para la lectura del sensor y control PID
 
 const int PIN_LED = 12;
-const int PIN_LED2 = 14;
+const int PIN_LED2 = 27;
 
 PID::PIDParameters<double> parameters(0.4, 6.0, 0.0001); // parámetros del controlador PID
 PID::PIDController<double> pidController(parameters);
@@ -113,7 +113,6 @@ void ControlPIDTask(void *pvParameters)
     Serial.println("Iluminacion interior: ");
     Serial.println(ilum);
     iluminacion = String(ilum);
-    Serial.println(ilum);
 
 #if PID_CONTROLER
     pidController.Input = ilum;
@@ -184,6 +183,9 @@ void connectMQTT()
 void WiFiCommunicationTask(void *pvParameters)
 {
   (void)pvParameters;
+#if WIFI_ENABLE
+  connectWiFi();
+#endif
   connectMQTT();
   delay(2000);
   for (;;)
@@ -209,10 +211,6 @@ void setup()
   Serial.begin(115200);
   Serial.println("Initializing...");
 
-#if WIFI_ENABLE
-  connectWiFi();
-#endif
-
 #if WIFI_ENABLE && MQTT_ENABLE
   xTaskCreatePinnedToCore(
       WiFiCommunicationTask,
@@ -236,4 +234,4 @@ void setup()
 #endif
 }
 
-void loop() { }
+void loop() {}

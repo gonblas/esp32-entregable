@@ -28,12 +28,26 @@
     {
       "type": "wokwi-resistor",
       "id": "r2",
-      "top": 23.15,
+      "top": 13.55,
       "left": 28.8,
       "attrs": { "value": "10000" }
     },
-    { "type": "wokwi-led", "id": "led1", "top": 34.8, "left": 71, "attrs": { "color": "blue" } },
-    { "type": "wokwi-led", "id": "led2", "top": 111.6, "left": 71, "attrs": { "color": "red" } }
+    { "type": "wokwi-led", "id": "led1", "top": 34.8, "left": 23, "attrs": { "color": "red" } },
+    { "type": "wokwi-led", "id": "led2", "top": 73.2, "left": 23, "attrs": { "color": "green" } },
+    {
+      "type": "wokwi-resistor",
+      "id": "r3",
+      "top": 71.15,
+      "left": 57.6,
+      "attrs": { "value": "220" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r4",
+      "top": 109.55,
+      "left": 57.6,
+      "attrs": { "value": "220" }
+    }
   ],
   "connections": [
     [ "esp:TX", "$serialMonitor:RX", "", [] ],
@@ -44,13 +58,15 @@
     [ "ldr2:VCC", "esp:3V3", "red", [ "v0", "h242.21" ] ],
     [ "ldr2:AO", "r2:1", "green", [] ],
     [ "ldr2:AO", "esp:A4", "green", [] ],
-    [ "esp:GND.3", "ldr2:GND", "black", [ "h45.64", "v136", "h-321.68", "v-172.4" ] ],
-    [ "esp:32", "r1:2", "green", [ "h-69.41", "v-132.8" ] ],
-    [ "esp:33", "r2:2", "green", [ "h-79.01", "v-27.2" ] ],
-    [ "led1:A", "esp:14", "green", [ "h19.2", "v8" ] ],
-    [ "led2:A", "esp:12", "green", [ "h19.2", "v-97.6" ] ],
-    [ "led2:C", "esp:GND.1", "black", [ "h-18.8", "v-88" ] ],
-    [ "led1:C", "esp:GND.1", "black", [ "h-18.8", "v27.2" ] ]
+    [ "esp:32", "r1:2", "green", [ "h-59.81", "v-132.8" ] ],
+    [ "esp:33", "r2:2", "green", [ "h-69.41", "v-36.8" ] ],
+    [ "led1:A", "r3:1", "green", [ "v0" ] ],
+    [ "led2:A", "r4:1", "green", [ "v0" ] ],
+    [ "r4:2", "esp:12", "green", [ "h8.4", "v-20.8" ] ],
+    [ "esp:GND.2", "ldr2:GND", "black", [ "v1.6", "h45.64", "v201.6", "h-326.4", "v-192" ] ],
+    [ "led1:C", "esp:GND.2", "black", [ "v0", "h-38", "v115.2", "h326.4", "v-201.6" ] ],
+    [ "led2:C", "esp:GND.2", "black", [ "h-38", "v76.8", "h326.4", "v-203.2" ] ],
+    [ "esp:27", "r3:2", "green", [ "h0" ] ]
   ],
   "dependencies": {}
 }
